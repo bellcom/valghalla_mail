@@ -1,0 +1,17 @@
+<?php
+
+/*
+ *
+ * @author Jesper Mathiassen <jm@bellcom.dk>
+ * @copyright Bellcom Open Source aps.
+ */
+
+function valghalla_mail_install() {
+
+}
+
+function valghalla_mail_uninstall() {
+
+}
+
+?>
