@@ -212,7 +212,7 @@ function valghalla_mail_sendmail_form($form, $form_state) {
   $form['recipents']['rsvp_status'] = array(
       '#type' => 'select',
       '#title' => 'RSVP Status',
-      '#multiple' => true,
+      //'#multiple' => true,
       '#options' => array(
           '1' => t('Ja'),
           '2' => t('Nej'),
@@ -221,7 +221,8 @@ function valghalla_mail_sendmail_form($form, $form_state) {
       ),
       '#size' => 5,
       '#prefix' => '<div style="float:left;margin-right:2em">',
-      '#suffix' => '</div>'
+      '#suffix' => '</div>',
+      '#default_value' => 1,
   );
   $form['recipents']['roles'] = array(
       '#type' => 'select',
@@ -250,7 +251,21 @@ function valghalla_mail_sendmail_form($form, $form_state) {
       '#prefix' => '<div style="float:left;margin-right:2em">',
       '#suffix' => '</div>'
   );
-
+  $form['sender'] = array(
+      '#type' => 'fieldset',
+      '#title' => 'Afsender',
+  );
+  $form['sender']['email_sender'] = array(
+      '#type' => 'checkbox',
+      '#title' => "brug min egen mail",
+      '#description' => "Denne vil også bruges som svar-til email, så svar fra modtageren sendes til den pågældende e-mailadresse. ",
+      '#default_value' => 0,
+  );
+  global $user;
+  $form['sender']['user_email'] = array(
+      '#type' => 'hidden',
+      '#default_value' => $user->mail,
+  );
   $form['send'] = array(
       '#type' => 'submit',
       '#value' => 'Send!',
@@ -366,7 +381,14 @@ function valghalla_mail_send($volunteers_params, $form_state){
     $to = $volunteer_params['!email'];
     // Check if there is an email address.
     if ($to) {
-      $from = variable_get('site_mail', 'admin@example.com');
+      // Check if sender is set to user's own email.
+      $mail_sender = $form_state['values']['email_sender'];
+      if ($mail_sender) {
+        $from = $form_state['values']['user_email'];
+      }
+      else {
+        $from = variable_get('site_mail', 'admin@example.com');
+      }
 
       $params = array(
           'message' => $form_state['storage']['body'],
