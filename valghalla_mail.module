@@ -9,6 +9,14 @@
  */
 
 /**
+ * Migration wrapper
+ */
+function _valghalla_helper_get_volunteer_info_params($params){
+  return _valhalla_helper_get_volunteer_info_params($params);
+}
+
+
+/**
  * Implementation of hook_menu()
  *
  * @author Thomas Thune Hansen <tth@bellcom.dk>
@@ -17,11 +25,21 @@ function valghalla_mail_menu() {
   $items['admin/valghalla/mails'] = array(
       'title' => 'Mails',
       'description' => 'Tilretning af standard mails.',
-      'page callback' => 'valghalla_mail_admin_valghalla_mails',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('valghalla_mail_admin_valghalla_mails'),
       'access arguments' => array('administer valghalla'),
       'file' => 'valghalla_mail_admin.inc',
       'type' => MENU_LOCAL_TASK,
       'weight' => -4,
+  );
+  $items['admin/valghalla/mails/old'] = array(
+    'title' => 'Mails',
+    'description' => 'Tilretning af standard mails.',
+    'page callback' => 'valghalla_mail_admin_valghalla_mails_old',
+    'access arguments' => array('administer valghalla'),
+    'file' => 'valghalla_mail_admin.inc',
+    'type' => MENU_LOCAL_TASK,
+    'weight' => -4,
   );
   $items['admin/valghalla/sendmail'] = array(
       'title' => 'Send mails til frivillige',

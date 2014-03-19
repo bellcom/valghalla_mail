@@ -14,24 +14,106 @@
  * @author Thomas Thune Hansen <tth@bellcom.dk>
  */
 function valghalla_mail_admin_valghalla_mails(){
+
+  drupal_add_css('#edit-mails, #edit-options { width: 49%; float: left; margin-right: 0.5%; } #edit-valghalla-role-mails {width: 100%;} #edit-valghalla-role-mails fieldset{width: 19%; float: left; margin-right: 0.4%;}',$option['type'] = 'inline');
+
   $mail_types = array(
     'invitation' => t('Invitation'),
     'reminder' => t('Påmindelse'),
-    'rsvp-yes' => t('RSVP Ja'),
-    'rsvp-no' => t('RSVP Nej'),
-    'rsvp-never' => t('RSVP Aldrig'),
+    'rsvp_yes' => t('RSVP Ja'),
+    'rsvp_no' => t('RSVP Nej'),
+    'rsvp_never' => t('RSVP Aldrig'),
   );
 
-  // Load all volunteer role nodes
+  // Load all volunteer and mail role nodes
+  $mail_nodes = node_load_multiple(array(), array('type' => 'email'));
   $role_nodes = node_load_multiple(array(), array('type' => 'roles'));
 
-  foreach($role_nodes as $role_node){
-    $text .= $role_node->title;
+  $form['valghalla_volunteers_mail']['mails'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('E-Mails'),
+  );
+
+  // Generate form for selecting general mails.
+  $mail_options['-none-'] = t('None');
+  foreach($mail_nodes as $mail_node){
+    $mail_options[$mail_node->nid] = $mail_node->title;
   }
 
-  return $text;
-}
+  foreach($mail_types as $mail_type => $mail_type_title){
+    $description = t('Vælg standard mail for: ') . $mail_type_title;
+    $mail_nid = variable_get('valghalla_mail_' . $mail_type, FALSE);
 
+    if($mail_nid){
+      $description .= ' <a class="form-submit" href="/node/' . $mail_nid . '/edit">'.t('edit').'</a>';
+    }
+
+    $form['valghalla_volunteers_mail']['mails']['valghalla_mail_' . $mail_type] = array(
+      '#title' => $mail_type_title,
+      '#type' => 'select',
+      '#options' => $mail_options,
+      '#default_value' => $mail_nid,
+      '#description' => $description,
+    );
+  }
+
+  $form['valghalla_volunteers_mail']['options'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Options'),
+  );
+
+  $form['valghalla_volunteers_mail']['options']['valghalla_rsvp_reminder_days'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Påmindelses dage'),
+      '#description' => 'Liste af dage før valg der skal udsendes påmindelser, adskildt af komma ( , ). f.eks. 14, 7, 5, 3',
+      '#default_value' => variable_get('valghalla_rsvp_reminder_days', '14, 7, 5, 3'),
+  );
+
+  $form['valghalla_role_mails'] = array(
+    '#title' => t('Rollespecifikke mails'),
+    '#type' => 'fieldset',
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+  );
+
+  // Generate fieldset for each role
+  foreach($role_nodes as $role_node){
+    $form['valghalla_role_mails'][$role_node->nid] = array(
+      '#type' => 'fieldset',
+      '#title' => $role_node->title . ': <a href="/node/' . $role_node->nid . '/edit">' . t('edit') . '</a>',
+    );
+
+    // Show referenced mails for each role
+    foreach($mail_types as $mail_type => $mail_type_title){
+      $mail_nid = '';
+      $mail_title = '';
+
+      if(!empty($role_node->{'field_'.$mail_type})){
+        $field_mail_type = field_get_items('node', $role_node, 'field_' . $mail_type);
+        $mail_nid = $field_mail_type[0]['target_id'];
+        $mail_node = node_load($mail_nid);
+        // Check if mail_node is valid
+        if(is_object($mail_node)){
+          $mail_title = $mail_node->title;
+        }
+      }
+
+      // Show mail title, and edit link if a mail is chosen.
+      $description = '*';
+      if(is_numeric($mail_nid)){
+        $description = $mail_title .': <a href="/node/' . $mail_nid . '/edit">'.t('edit').'</a>';
+      }
+
+      $form['valghalla_role_mails'][$role_node->nid][$mail_type] = array(
+        '#type' => 'item',
+        '#title' => $mail_type_title,
+        '#description' => $description,
+      );
+    }
+  }
+
+  return system_settings_form($form);
+}
 
 function valghalla_volunteers_admin_mail_form($form, &$form_state) {
   module_load_include('inc', 'valghalla_volunteers');
