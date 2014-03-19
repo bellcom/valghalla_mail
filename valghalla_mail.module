@@ -14,6 +14,9 @@
 function _valghalla_helper_get_volunteer_info_params($params){
   return _valhalla_helper_get_volunteer_info_params($params);
 }
+function _valghalla_volunteers_default_rsvp_status(){
+  return _valhalla_volunteers_default_rsvp_status();
+}
 
 
 /**
@@ -22,7 +25,7 @@ function _valghalla_helper_get_volunteer_info_params($params){
  * @author Thomas Thune Hansen <tth@bellcom.dk>
  */
 function valghalla_mail_menu() {
-  $items['admin/valghalla/mails'] = array(
+  $items['admin/valhalla/mails'] = array(
       'title' => 'Mails',
       'description' => 'Tilretning af standard mails.',
       'page callback' => 'drupal_get_form',
@@ -32,16 +35,7 @@ function valghalla_mail_menu() {
       'type' => MENU_LOCAL_TASK,
       'weight' => -4,
   );
-  $items['admin/valghalla/mails/old'] = array(
-    'title' => 'Mails',
-    'description' => 'Tilretning af standard mails.',
-    'page callback' => 'valghalla_mail_admin_valghalla_mails_old',
-    'access arguments' => array('administer valghalla'),
-    'file' => 'valghalla_mail_admin.inc',
-    'type' => MENU_LOCAL_TASK,
-    'weight' => -4,
-  );
-  $items['admin/valghalla/sendmail'] = array(
+  $items['admin/valhalla/sendmail'] = array(
       'title' => 'Send mails til frivillige',
       'description' => 'Her kan der udsendes mails til alle, eller udvalgte segmenter, af de frivillige.',
       'page callback' => 'drupal_get_form',
@@ -50,7 +44,7 @@ function valghalla_mail_menu() {
       'type' => MENU_LOCAL_TASK,
       'weight' => -5,
   );
-  $items['valghalla_mail/ajax/view'] = array(
+  $items['valhalla_mail/ajax/view'] = array(
     'page callback' => 'valghalla_mail_ajax_view',
     'access arguments' => array('administer valghalla'),
   );
@@ -75,45 +69,57 @@ function valghalla_mail_mail($key, &$message, $params) {
   $options = array();
   switch ($key) {
     case 'rsvp_reminder':
-      $email = &drupal_static(__FUNCTION__ . 'rsvp_reminder', FALSE);
-      if (!$email) {
-        $email = new stdClass;
-        module_load_include('inc', 'valghalla_mail', 'valghalla_mail_admin');
-        $email->subject = variable_get('valghalla_rsvp_reminder_subject', _valghalla_volunteers_default_rsvp_reminder('subject'));
-        $email->body = variable_get('valghalla_rsvp_reminder_body', _valghalla_volunteers_default_rsvp_reminder('body'));
-      }
-      $message['subject'] = t($email->subject, $params, $options);
-      $message['body'][] = t($email->body, $params, $options);
+      $message['subject'] = t($params['subject'], $params, $options);
+      $message['body'][] = t($params['body'], $params, $options);
+      break;
+    case 'invitation':
+      $message['subject'] = t($params['subject'], $params, $options);
+      $message['body'][] = t($params['body'], $params, $options);
       break;
     case 'rsvp':
-      $email = &drupal_static(__FUNCTION__ . 'rsvp_email', FALSE);
-      if (!$email) {
-        module_load_include('inc', 'valghalla_mail', 'valghalla_mail_admin');
-        $email = new stdClass;
-        $email->subject = variable_get('valghalla_rsvp_email_subject', _valghalla_volunteers_default_rsvp_email('subject'));
-        $email->body = variable_get('valghalla_rsvp_email_body', _valghalla_volunteers_default_rsvp_email('body'));
-      }
-      $message['subject'] = t($email->subject, $params, $options);
-      $message['body'][] = t($email->body, $params, $options);
-      break;
-    case 'rsvp_confirm':
-      $email = &drupal_static(__FUNCTION__ . 'rsvp_status', FALSE);
-      if (!$email) {
-        $email = new stdClass;
-        module_load_include('inc', 'valghalla_mail', 'valghalla_mail_admin');
-        if (in_array($params['rsvp_type'], array('yes', 'no', 'never'))) {
-          $email->subject = variable_get('valghalla_rsvp_status_subject_' . $params['rsvp_type'], _valghalla_volunteers_default_rsvp_status('subject_' . $params['rsvp_type']));
-          $email->body = variable_get('valghalla_rsvp_status_body_' . $params['rsvp_type'], _valghalla_volunteers_default_rsvp_status('body_' . $params['rsvp_type']));
-        }
-      }
-      $message['subject'] = t($email->subject, $params, $options);
-      $message['body'][] = t($email->body, $params, $options);
+      $message['subject'] = t($params['subject'], $params, $options);
+      $message['body'][] = t($params['body'], $params, $options);
       break;
     case 'default':
       $message['subject'] = t($params['subject'], $params['replacements'], $options);
       $message['body'][] = t($params['message'], $params['replacements'], $options);
       break;
   }
+}
+
+/**
+ * Fetch mail subject and body for given role, mail type.
+ *
+ * @author Thomas Thune Hansen <tth@bellcom.dk>
+ */
+function valghalla_mail_get_mail($role_nid, $mail_type){
+  // Get role specific mail node id.
+  $mail_nid = db_select('field_data_field_'.$mail_type, 't')
+    ->fields('t', array('field_'.$mail_type.'_target_id'))
+    ->condition('t.entity_id', $role_nid)
+    ->execute()
+    ->fetchColumn();
+
+  // If it doesn't exist, get the standard.
+  if(!$mail_nid){
+    $mail_nid = variable_get('valghalla_mail_' . $mail_type, FALSE);
+  }
+
+
+  $mail_node = node_load($mail_nid);
+
+  // If mail_node is valid, get values.
+  if(is_object($mail_node)){
+    $body_field = field_get_items('node', $mail_node, 'body');
+    $subject_field = field_get_items('node', $mail_node, 'field_subject');
+
+    $body = $body_field[0]['value'];
+    $subject = $subject_field[0]['value'];
+
+    return array('subject' => $subject, 'body' => $body);
+  }
+
+  return FALSE;
 }
 
 /**
