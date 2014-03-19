@@ -14,9 +14,22 @@
  * @author Thomas Thune Hansen <tth@bellcom.dk>
  */
 function valghalla_mail_admin_valghalla_mails(){
+  $mail_types = array(
+    'invitation' => t('Invitation'),
+    'reminder' => t('Påmindelse'),
+    'rsvp-yes' => t('RSVP Ja'),
+    'rsvp-no' => t('RSVP Nej'),
+    'rsvp-never' => t('RSVP Aldrig'),
+  );
 
+  // Load all volunteer role nodes
+  $role_nodes = node_load_multiple(array(), array('type' => 'roles'));
 
-  return "Valghalla_mails";
+  foreach($role_nodes as $role_node){
+    $text .= $role_node->title;
+  }
+
+  return $text;
 }
 
 
