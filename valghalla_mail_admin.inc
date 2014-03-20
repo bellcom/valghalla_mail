@@ -33,6 +33,10 @@ function valghalla_mail_admin_valghalla_mails(){
 
   drupal_add_css($css, $option['type'] = 'inline');
 
+  // This array holds the mail types. Used for generating
+  // forms. Array key corresponds field on volunteer role
+  // node. Ex. field_{key}. And system variables for general
+  // mails. Ex. valghalla_mail_{key}.
   $mail_types = array(
     'invitation' => t('Invitation'),
     'reminder' => t('Påmindelse'),
@@ -50,12 +54,13 @@ function valghalla_mail_admin_valghalla_mails(){
     '#title' => t('E-Mails'),
   );
 
-  // Generate form for selecting general mails.
+  // Populate array with mail options for general mails.
   $mail_options[0] = t('None');
   foreach($mail_nodes as $mail_node){
     $mail_options[$mail_node->nid] = $mail_node->title;
   }
 
+  // Generate form for selecting general mails.
   foreach($mail_types as $mail_type => $mail_type_title){
     $description = t('Vælg standard mail for: ') . $mail_type_title;
     $mail_nid = variable_get('valghalla_mail_' . $mail_type, FALSE);
@@ -106,6 +111,8 @@ function valghalla_mail_admin_valghalla_mails(){
       $mail_nid = '';
       $mail_title = '';
 
+      // If the node (role) has the field set for the mail type.
+      // Get the node id and load the node, for additinal info.
       if(!empty($role_node->{'field_'.$mail_type})){
         $field_mail_type = field_get_items('node', $role_node, 'field_' . $mail_type);
         $mail_nid = $field_mail_type[0]['target_id'];

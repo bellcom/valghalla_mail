@@ -11,6 +11,7 @@
 /**
  * Migration wrapper
  *
+ * @author Thomas Thune Hansen <tth@bellcom.dk>
  * @TODO:
  *  Remove when valhalla_volunteers module is renamed.
  */
@@ -32,7 +33,6 @@ function valghalla_mail_cron(){
   $last_run_ts = variable_get('valghalla_mail_last_run', REQUEST_TIME);
 
   valghalla_mail_rsvp_reminder($last_run_ts);
-
 
   variable_set('valghalla_mail_last_run', REQUEST_TIME);
 }

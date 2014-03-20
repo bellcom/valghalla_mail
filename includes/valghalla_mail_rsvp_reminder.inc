@@ -1,5 +1,12 @@
 <?php
 /**
+ * @file valghalla_mail_rsvp_reminder.inc
+ *
+ * @copyright 2012 OS2 - Offentligt Digitaliseringsfællesskab.
+ * See README.md at https://github.com/os2web/valghalla_mail
+ */
+
+/**
  * Valghalla RSVP Reminder
  *
  * this notifies volunteers with no rsvp status 14 an 7 days before an election
@@ -19,7 +26,11 @@ function valghalla_mail_rsvp_reminder($last_run_ts) {
       ->execute()
       ->fetchColumn();
 
-  // load election node
+  if (!$nid) {
+    watchdog('Valghalla', 'Der blev ikke fundet noget aktict valg - aktiver dit valg. ', WATCHDOG_NOTICE);
+    return;
+  }
+
   $election = node_load($nid);
 
   $election_date = field_get_items('node', $election, 'field_date');
@@ -32,11 +43,6 @@ function valghalla_mail_rsvp_reminder($last_run_ts) {
   $notification_days_arr = variable_get('valghalla_rsvp_reminder_days');
   $notification_days = explode(',', variable_get('valghalla_rsvp_reminder_days'));
 
-  if (!$nid) {
-    watchdog('Valghalla', 'Der blev ikke fundet noget aktict valg - aktiver dit valg. ', WATCHDOG_NOTICE);
-    return;
-  }
-
   if (!in_array($days_to_election, $notification_days)) {
     watchdog('Valghalla', 'Mail job blev ikke kørt idet idag ikke er nogen rykker dag. Valg: %election_date Dage til valget: %todays Rykkerdage: %godays', array('%todays' => $days_to_election, '%godays' => $notification_days_arr, '%election_date' => $election_date), WATCHDOG_NOTICE);
     return;
@@ -48,7 +54,6 @@ function valghalla_mail_rsvp_reminder($last_run_ts) {
     watchdog('Valghalla', 'Cron for Valghalla mails blev ikke kørt da den allerede er kørt i dag: %last_run', array('%last_run' => $check_data), WATCHDOG_NOTICE);
     return;
   }
-
 
   // helpers
   $election->days_to_election = $days_to_election;
@@ -73,7 +78,6 @@ function valghalla_mail_rsvp_reminder($last_run_ts) {
 /**
  * this function prepares the email and triggers the mail_send() hook
  *
- * @see valhalla_cron_mail
  * @global stdClass $language
  * @param stdClass $election
  * @param stdClass $volunteer
@@ -85,7 +89,6 @@ function valghalla_mail_rsvp_reminder_send($election, $volunteer) {
 
   $to = $email[0]['email'];
   $from = variable_get('site_mail', 'admin@example.com');
-
   $tokens = _valhalla_helper_get_volunteer_info_params($volunteer);
 
   // Fetch the mail for the volunteers role
