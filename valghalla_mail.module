@@ -10,6 +10,9 @@
 
 /**
  * Migration wrapper
+ *
+ * @TODO:
+ *  Remove when valhalla_volunteers module is renamed.
  */
 function _valghalla_helper_get_volunteer_info_params($params){
   return _valhalla_helper_get_volunteer_info_params($params);
@@ -18,9 +21,24 @@ function _valghalla_volunteers_default_rsvp_status(){
   return _valhalla_volunteers_default_rsvp_status();
 }
 
+/**
+ * Implements hook_cron()
+ *
+ * @author Thomas Thune Hansen <tth@bellcom.dk>
+ */
+function valghalla_mail_cron(){
+  include_once 'includes/valghalla_mail_rsvp_reminder.inc';
+
+  $last_run_ts = variable_get('valghalla_mail_last_run', REQUEST_TIME);
+
+  valghalla_mail_rsvp_reminder($last_run_ts);
+
+
+  variable_set('valghalla_mail_last_run', REQUEST_TIME);
+}
 
 /**
- * Implementation of hook_menu()
+ * Implements hook_menu()
  *
  * @author Thomas Thune Hansen <tth@bellcom.dk>
  */
@@ -53,12 +71,6 @@ function valghalla_mail_menu() {
 }
 
 /**
- * implements hook_init()
- */
-function valghalla_mail_init(){
-  drupal_add_js(drupal_get_path('module', 'valghalla_mail') . '/js/valghalla_mail.js', 'file');
-}
-/**
  * Handles valghalla templated mail sendout.
  *
  * @param type $key
@@ -68,18 +80,13 @@ function valghalla_mail_init(){
 function valghalla_mail_mail($key, &$message, $params) {
   $options = array();
   switch ($key) {
-    case 'rsvp_reminder':
-      $message['subject'] = t($params['subject'], $params, $options);
-      $message['body'][] = t($params['body'], $params, $options);
+    // "default" case for sending mail.
+    case 'mail':
+      $message['subject'] = t($params['subject'], $params['tokens'], $options);
+      $message['body'][] = t($params['body'], $params['tokens'], $options);
       break;
-    case 'invitation':
-      $message['subject'] = t($params['subject'], $params, $options);
-      $message['body'][] = t($params['body'], $params, $options);
-      break;
-    case 'rsvp':
-      $message['subject'] = t($params['subject'], $params, $options);
-      $message['body'][] = t($params['body'], $params, $options);
-      break;
+    // 20/03-2014 - tth@bellcom.dk: Not sure if this is needed anymore
+    // will keep it for a bit.
     case 'default':
       $message['subject'] = t($params['subject'], $params['replacements'], $options);
       $message['body'][] = t($params['message'], $params['replacements'], $options);
@@ -104,7 +111,6 @@ function valghalla_mail_get_mail($role_nid, $mail_type){
   if(!$mail_nid){
     $mail_nid = variable_get('valghalla_mail_' . $mail_type, FALSE);
   }
-
 
   $mail_node = node_load($mail_nid);
 
