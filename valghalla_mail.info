@@ -1,10 +1,5 @@
-; $Id$
-; 
-; @author Jesper Mathiassen <jm@bellcom.dk>
-; @copyright Bellcom Open Source aps.
-
 ; Module name (human readable)
-name = Valhalla postman.
+name = Valghalla Mail.
 ; Module description
 description = Module for sending out mails to volunteers.
 
@@ -12,7 +7,7 @@ package = valghalla
 core = 7.x
 
 ; Additional infomation
-version = "7.x-1.0"
+version = "7.x-1.2"
 project = ""
 
 configure = admin/valghalla/mails
@@ -20,3 +15,5 @@ configure = admin/valghalla/mails
 files[] = valghalla_mail.module
 files[] = valghalla_mail.inc
 files[] = valghalla_mail_admin.inc
+
+features[features_api][] = api:3
