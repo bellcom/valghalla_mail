@@ -1,19 +1,11 @@
-; Module name (human readable)
 name = Valghalla Mail.
-; Module description
 description = Module for sending out mails to volunteers.
-
-package = valghalla
 core = 7.x
-
-; Additional infomation
-version = "7.x-1.2"
-project = ""
-
+package = valghalla
+version = 7.x-1.2
+project = valghalla_mail
 configure = admin/valghalla/mails
-
+features[features_api][] = api:2
 files[] = valghalla_mail.module
 files[] = valghalla_mail.inc
 files[] = valghalla_mail_admin.inc
-
-features[features_api][] = api:3
