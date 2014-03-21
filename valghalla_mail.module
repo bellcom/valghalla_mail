@@ -1,5 +1,11 @@
 <?php
 /**
+ * @file
+ * Code for the Valghalla Mail. feature.
+ */
+
+include_once 'valghalla_mail.features.inc';
+/**
  * Valghalla mail module
  *
  * @file valghalla_mail.module
@@ -68,6 +74,17 @@ function valghalla_mail_menu() {
   );
 
   return $items;
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter()
+ *
+ * Insert info block with tokens, below body field.
+ *
+ * @author Thomas Thune Hansen <tth@bellcom.dk>
+ */
+function valghalla_mail_form_email_node_form_alter(&$form, &$form_state, $form_id){
+  $form['body']['#suffix'] = _valghalla_helper_get_volunteer_info_params('info') . $form['body']['#suffix'];
 }
 
 /**
