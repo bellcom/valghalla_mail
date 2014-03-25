@@ -43,7 +43,7 @@ function valghalla_mail_cron(){
  * @author Thomas Thune Hansen <tth@bellcom.dk>
  */
 function valghalla_mail_menu() {
-  $items['admin/valhalla/mails'] = array(
+  $items['admin/valghalla/mails'] = array(
       'title' => 'Mails',
       'description' => 'Tilretning af standard mails.',
       'page callback' => 'drupal_get_form',
@@ -53,7 +53,7 @@ function valghalla_mail_menu() {
       'type' => MENU_LOCAL_TASK,
       'weight' => -4,
   );
-  $items['admin/valhalla/sendmail'] = array(
+  $items['admin/valghalla/sendmail'] = array(
       'title' => 'Send mails til frivillige',
       'description' => 'Her kan der udsendes mails til alle, eller udvalgte segmenter, af de frivillige.',
       'page callback' => 'drupal_get_form',
@@ -91,6 +91,12 @@ function valghalla_mail_mail($key, &$message, $params) {
       $message['subject'] = t($params['subject'], $params['replacements'], $options);
       $message['body'][] = t($params['message'], $params['replacements'], $options);
       break;
+    case 'cancellation_attend':
+      $message['subject'] = $params['subject'];
+      $message['body'][] = $params['body'];
+    case 'remove_from_list':
+      $message['subject'] = $params['subject'];
+      $message['body'][] = $params['body'];
   }
 }
 

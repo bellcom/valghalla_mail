@@ -25,10 +25,20 @@ function valghalla_mail_admin_valghalla_mails(){
     #edit-valghalla-role-mails {
       width: 100%;
     }
+    #edit-valghalla-mail-cancel {
+      width: 49%;
+    }
     #edit-valghalla-role-mails fieldset {
       width: 19%;
       float: left;
       margin-right: 0.4%;
+    }
+    .form-item-valghalla-mail-cancellation-from-participants-others {
+      float: left;
+      padding-right: 10px !important;
+    }
+    .form-item-valghalla-mail-cancellation-from-participants-to-mails{
+      padding: 0 0 0 5px !important;
     }";
 
   drupal_add_css($css, $option['type'] = 'inline');
@@ -43,6 +53,7 @@ function valghalla_mail_admin_valghalla_mails(){
     'rsvp_yes' => t('RSVP Ja'),
     'rsvp_no' => t('RSVP Nej'),
     'rsvp_never' => t('RSVP Aldrig'),
+    'remove' => t('Slet fra pladsen'),
   );
 
   // Load all volunteer and mail role nodes.
@@ -68,7 +79,9 @@ function valghalla_mail_admin_valghalla_mails(){
     if($mail_nid){
       $description .= ' <a class="form-submit" href="/node/' . $mail_nid . '/edit?destination=/admin/valhalla/mails">'.t('edit').'</a>';
     }
-
+    elseif (node_type_load('email')) {
+      $description .= ' <a class="form-submit" href="/node/add/email?destination=/admin/valghalla/mails">'.t('add').'</a>';
+    }
     $form['valghalla_volunteers_mail']['mails']['valghalla_mail_' . $mail_type] = array(
       '#title' => $mail_type_title,
       '#type' => 'select',
@@ -91,6 +104,65 @@ function valghalla_mail_admin_valghalla_mails(){
       '#description' => 'Liste af dage før valg der skal udsendes påmindelser, adskildt af komma ( , ). f.eks. 14, 7, 5, 3',
       '#default_value' => variable_get('valghalla_rsvp_reminder_days', '14, 7, 5, 3'),
   );
+
+  // Cancellation from participants mail settings
+  $roles = db_query("SELECT name, rid FROM {role} WHERE rid > 2");
+  $form['valghalla_volunteers_mail']['valghalla_mail_cancel'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Besked ved afbud fra deltagere'),
+    '#collapsible' => TRUE,
+    '#description' => t('Vælg en eller flere rolle(r) at sende mail til, eller skriv mail adresser i tekst feltet.'),
+    //'#collapsed' => TRUE,
+  );
+  foreach ($roles as $role) {
+    $form['valghalla_volunteers_mail']['valghalla_mail_cancel']["valghalla_mail_cancellation_from_participants_".$role->rid]= array(
+      '#type' => 'checkbox',
+      '#title' => $role->name,
+      '#default_value' => variable_get("valghalla_mail_cancellation_from_participants_".$role->rid),
+    );
+  }
+  $other_mails = variable_get("valghalla_mail_cancellation_from_participants_to_mails");
+  $other_check = variable_get("valghalla_mail_cancellation_from_participants_others");
+  if (!empty($other_mails) && empty($other_check)) {
+    variable_set("valghalla_mail_cancellation_from_participants_others", 0);
+    variable_set("valghalla_mail_cancellation_from_participants_to_mails","");
+  }
+  elseif (empty($other_mails) && $other_check) {
+    variable_set("valghalla_mail_cancellation_from_participants_others", 0);
+  }
+
+  $form['valghalla_volunteers_mail']['valghalla_mail_cancel']['valghalla_mail_cancellation_from_participants_others'] = array(
+      '#type' => 'checkbox',
+      '#title' => t("Andet"),
+      '#default_value' => variable_get("valghalla_mail_cancellation_from_participants_others"),
+    );
+  $form['valghalla_volunteers_mail']['valghalla_mail_cancel']['valghalla_mail_cancellation_from_participants_to_mails'] = array(
+      '#type' => 'textfield',
+      '#description' => t("Separer modtagere med kommaer"),
+      '#default_value' => variable_get("valghalla_mail_cancellation_from_participants_to_mails"),
+    );
+
+  // Only choose the rsvp_no and rsvp_never types.
+  foreach($mail_types as $mail_type => $mail_type_title){
+    if ($mail_type == "rsvp_no" || $mail_type == "rsvp_never") {
+      $description_2 = t('Vælg standard mail for: ') .$mail_type_title;
+      $mailnid = variable_get("valghalla_mail_cancellation_from_participants_mail_$mail_type", FALSE);
+
+      if($mailnid){
+        $description_2 .= ' <a class="form-submit" href="/node/' . $mailnid . '/edit?destination=/admin/valghalla/mails">'.t('edit').'</a>';
+      }
+      elseif (node_type_load('email')) {
+        $description_2 .= ' <a class="form-submit" href="/node/add/email?destination=/admin/valghalla/mails">'.t('add').'</a>';
+      }
+      $form['valghalla_volunteers_mail']['valghalla_mail_cancel']['valghalla_mail_cancellation_from_participants_mail_' . $mail_type] = array(
+        '#type' => 'select',
+        '#options' => $mail_options,
+        '#default_value' => $mailnid,
+        '#title' => $mail_type_title . t(' til rolle(r)'),
+        '#description' => $description_2,
+      );
+    }
+  }
 
   $form['valghalla_role_mails'] = array(
     '#title' => t('Rollespecifikke mails'),
