@@ -115,11 +115,13 @@ function valghalla_mail_admin_valghalla_mails(){
     //'#collapsed' => TRUE,
   );
   foreach ($roles as $role) {
-    $form['valghalla_volunteers_mail']['valghalla_mail_cancel']["valghalla_mail_cancellation_from_participants_".$role->rid]= array(
-      '#type' => 'checkbox',
-      '#title' => $role->name,
-      '#default_value' => variable_get("valghalla_mail_cancellation_from_participants_".$role->rid),
-    );
+    if ($role->rid == 5 || $role->name == "afbud" || $role->name == "afbud mail") {
+      $form['valghalla_volunteers_mail']['valghalla_mail_cancel']["valghalla_mail_cancellation_from_participants_".$role->rid]= array(
+        '#type' => 'checkbox',
+        '#title' => $role->name,
+        '#default_value' => variable_get("valghalla_mail_cancellation_from_participants_".$role->rid),
+      );
+    }
   }
   $other_mails = variable_get("valghalla_mail_cancellation_from_participants_to_mails");
   $other_check = variable_get("valghalla_mail_cancellation_from_participants_others");
