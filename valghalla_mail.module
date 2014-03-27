@@ -99,6 +99,7 @@ function valghalla_mail_mail($key, &$message, $params) {
   switch ($key) {
     // "default" case for sending mail.
     case 'mail':
+      if(!isset($params['tokens'])) $params['tokens'] = array();
       $message['subject'] = t($params['subject'], $params['tokens'], $options);
       $message['body'][] = t($params['body'], $params['tokens'], $options);
       break;
@@ -144,7 +145,35 @@ function valghalla_mail_get_mail($role_nid, $mail_type){
 
   return FALSE;
 }
+/**
+ * Fetch mail subject and body for given Id.
+ *
+ * @param integer $mail_nid
+ * @param stdClass $node volunteer.
+ * @global $language
+ */
+function valghalla_mail_get_mail_byId($mail_nid){
+  if (!is_numeric($mail_nid)) {
+    return FALSE;
+  }
+  $mail_node = node_load($mail_nid);
+  global $language;
+  $params = array();
+  // If mail_node is valid, get values.
+  if(is_object($mail_node)){
+    $body_field = field_get_items('node', $mail_node, 'body');
+    $subject_field = field_get_items('node', $mail_node, 'field_subject');
 
+    $body = $body_field[0]['value'];
+    $subject = $subject_field[0]['value'];
+    $params = array(
+              'subject' => $subject,
+              'body' => $body
+              );
+    return $params;
+  }
+  return FALSE;
+}
 /**
  * Implementation of hook_form for the send mail page.
  *
