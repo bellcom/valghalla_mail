@@ -68,7 +68,10 @@ function valghalla_mail_admin_valghalla_mails(){
   // Populate array with mail options for general mails.
   $mail_options[0] = t('None');
   foreach($mail_nodes as $mail_node){
-    $mail_options[$mail_node->nid] = $mail_node->title;
+    // yani: only list the auto mails type.
+    if (isset($mail_node->field_valghalla_mail_type['und']) && $mail_node->field_valghalla_mail_type['und'][0]['value'] == 1) {
+      $mail_options[$mail_node->nid] = $mail_node->title;
+    }
   }
 
   // Generate form for selecting general mails.
@@ -135,7 +138,7 @@ function valghalla_mail_admin_valghalla_mails(){
 
   $form['valghalla_volunteers_mail']['valghalla_mail_cancel']['valghalla_mail_cancellation_from_participants_others'] = array(
       '#type' => 'checkbox',
-      '#title' => t("Andet"),
+      '#title' => t("Andre"),
       '#default_value' => variable_get("valghalla_mail_cancellation_from_participants_others"),
     );
   $form['valghalla_volunteers_mail']['valghalla_mail_cancel']['valghalla_mail_cancellation_from_participants_to_mails'] = array(
