@@ -2,8 +2,6 @@
 /**
  * Valghalla mail module
  *
- * @file valghalla_mail_admin.module
- *
  * @copyright 2012 OS2 - Offentligt Digitaliseringsfællesskab.
  * See README.md at https://github.com/os2web/valghalla_mail
  */

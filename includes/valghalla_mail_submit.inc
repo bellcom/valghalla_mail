@@ -1,24 +1,18 @@
 <?php
-
 /**
- * @file 
+ * @file
  * Handles the form submission of the valghalla_mail_sendmail form
  * @author Yani Xu <yx@bellcom.dk>
  */
-
 
 /**
  * Handles what to do with the submitted form depending on what stage has been
  * completed.
  *
  * @see valghalla_mail_sendmail_form()
- *
- * @param type $form
- * @param type $form_state 
  */
 function valghalla_mail_sendmail_form_submit($form, &$form_state) {
   switch ($form_state['stage']) {
-
     case 'send_confirm':
       $form_state['multistep_values'][$form_state['stage']] = $form_state['values'];
       if ($form_state['triggering_element']['#value'] != 'Tilbage') {
@@ -31,7 +25,6 @@ function valghalla_mail_sendmail_form_submit($form, &$form_state) {
       $form_state['multistep_values'][$form_state['stage']] = $form_state['values'];
       $form_state['new_stage'] = valghalla_mail_sendmail_move_to_next_stage($form, $form_state);
       break;
-
   }
 
   if (isset($form_state['complete'])) {
@@ -49,7 +42,6 @@ function valghalla_mail_sendmail_form_submit($form, &$form_state) {
   $form_state['multistep_values']['form_build_id'] = $form_state['values']['form_build_id'];
   $form_state['stage'] = $form_state['new_stage'];
   $form_state['rebuild'] = TRUE;
-
 }
 
  /**
@@ -61,12 +53,10 @@ function valghalla_mail_sendmail_form_submit($form, &$form_state) {
   * @author yani
   */
 function valghalla_mail_sendmail_send_confirm_submit($form, &$form_state) {
-
   $multstep_values = $form_state['multistep_values'];
   $nid = $multstep_values['get_recipients']['valghalla_mail_email_node_ID'];
   $sendMailList_count = $form_state['valghalla_sendlist']['valghalla_sendlist_acount'];
   $mails = $form_state['valghalla_sendlist']['valghalla_sendlist_array'];
-  error_log("multstep_values =>".print_r($multstep_values, TRUE),3, "/Applications/acquia-drupal/apache/logs/error_log");
 
   // TODO : Set email queue size to 500 email. TODO: admin config bar.
   // $queue = $sendMailList_count/5;
@@ -83,7 +73,7 @@ function valghalla_mail_sendmail_send_confirm_submit($form, &$form_state) {
 
   foreach ($mails as $key => $to) {
     $volunteer_node = node_load($key);
-    $params = valghalla_mail_get_mail_byId($nid);
+    $params = valghalla_mail_get_mail(FALSE, FALSE, $nid);
     $tokens = _valhalla_helper_get_volunteer_info_params($volunteer_node);
     $params = array_merge(array('tokens' => $tokens), $params);
     $result = drupal_mail('valghalla_mail', 'mail', $to, $language, $params, $from, TRUE);
