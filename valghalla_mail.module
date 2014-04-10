@@ -1,13 +1,4 @@
 <?php
-/**
- * @file
- * Code for the Valghalla Mail. feature.
- */
-
-include_once 'valghalla_mail.features.inc';
-module_load_include('inc', 'valghalla_mail', 'includes/valghalla_mail_navigation');
-module_load_include('inc', 'valghalla_mail', 'includes/valghalla_mail_submit');
-module_load_include('inc', 'valghalla_mail', 'includes/valghalla_mail_form');
 
 /**
  * Valghalla mail module
@@ -16,13 +7,18 @@ module_load_include('inc', 'valghalla_mail', 'includes/valghalla_mail_form');
  *
  * @copyright 2012 OS2 - Offentligt Digitaliseringsfællesskab.
  * See README.md at https://github.com/os2web/valghalla_mail
+ *
  */
+
 /**
- * implements hook_init()
+ * Code for the Valghalla Mail. feature.
  */
-function valhalla_mail_init(){
-  drupal_add_js(drupal_get_path('module', 'valghalla_mail') . '/js/valghalla_mail.js', 'file');
-}
+include_once 'valghalla_mail.features.inc';
+
+module_load_include('inc', 'valghalla_mail', 'includes/valghalla_mail_navigation');
+module_load_include('inc', 'valghalla_mail', 'includes/valghalla_mail_submit');
+module_load_include('inc', 'valghalla_mail', 'includes/valghalla_mail_form');
+
 /**
  * Migration wrapper
  *
@@ -96,19 +92,28 @@ function valghalla_mail_menu() {
 /**
  * Handles valghalla templated mail sendout.
  *
- * @param type $key
- * @param type $message
- * @param type $params
  */
 function valghalla_mail_mail($key, &$message, $params) {
   $options = array();
   switch ($key) {
     // "default" case for sending mail.
     case 'mail':
-      if(!isset($params['tokens'])) $params['tokens'] = array();
+      $params += array('tokens' => '');
+
+      // Html mail
+      $headers = array(
+        'MIME-Version' => '1.0',
+        'Content-Type' => 'text/html; charset=UTF-8; format=flowed',
+        'Content-Transfer-Encoding' => '8Bit',
+        'X-Mailer' => 'Drupal'
+      );
+      foreach ($headers as $key => $value) {
+        $message['headers'][$key] = $value;
+      }
+
       $message['subject'] = t($params['subject'], $params['tokens'], $options);
       $message['body'][] = t($params['body'], $params['tokens'], $options);
-      $message['params']['attachments'][] = $params['attachments'];
+      $message['params']['attachments'] = $params['attachments'];
       break;
     // 20/03-2014 - tth@bellcom.dk: Not sure if this is needed anymore
     // will keep it for a bit.
@@ -124,13 +129,15 @@ function valghalla_mail_mail($key, &$message, $params) {
  *
  * @author Thomas Thune Hansen <tth@bellcom.dk>
  */
-function valghalla_mail_get_mail($role_nid, $mail_type){
-  // Get role specific mail node id.
-  $mail_nid = db_select('field_data_field_'.$mail_type, 't')
-    ->fields('t', array('field_'.$mail_type.'_target_id'))
-    ->condition('t.entity_id', $role_nid)
-    ->execute()
-    ->fetchColumn();
+function valghalla_mail_get_mail($role_nid, $mail_type, $mail_nid = FALSE){
+  if($mail_type){
+    // Get role specific mail node id.
+    $mail_nid = db_select('field_data_field_'.$mail_type, 't')
+      ->fields('t', array('field_'.$mail_type.'_target_id'))
+      ->condition('t.entity_id', $role_nid)
+      ->execute()
+      ->fetchColumn();
+  }
 
   // If it doesn't exist, get the standard.
   if(!$mail_nid){
@@ -144,62 +151,21 @@ function valghalla_mail_get_mail($role_nid, $mail_type){
     $body_field = field_get_items('node', $mail_node, 'body');
     $subject_field = field_get_items('node', $mail_node, 'field_subject');
     // yani: add attachment
-    $files = field_get_items('node', $mail_node, 'field_valghalla_mail_attachments');
-    if (isset($files)) {
-      // TODO: multi files
-      $file = file_load($files[0]['fid']);
-      $uri = drupal_realpath($file->uri);
-      $attachments = array(
-        'filecontent' => $uri,
-        'filename' => $file->filename,
-        'filemime' => $file->filemime,
-      );
-    }
-    $body = $body_field[0]['value'];
-    $subject = $subject_field[0]['value'];
-    return array('subject' => $subject, 'body' => $body, 'attachments' => $attachments);
-  }
-  return FALSE;
-}
-/**
- * Fetch mail subject and body for given Id.
- *
- * @param integer $mail_nid
- * @param stdClass $node volunteer.
- * @global $language
- * @author Yani Xu <yx@bellcom.dk>
- */
-function valghalla_mail_get_mail_byId($mail_nid){
-  if (!is_numeric($mail_nid)) {
-    return FALSE;
-  }
-  $mail_node = node_load($mail_nid);
-  global $language;
-  $params = array();
-  // If mail_node is valid, get values.
-  if(is_object($mail_node)){
-    $body_field = field_get_items('node', $mail_node, 'body');
-    $subject_field = field_get_items('node', $mail_node, 'field_subject');
-    $files = field_get_items('node', $mail_node, 'field_valghalla_mail_attachments');
-    if (isset($files)) {
-      // TODO: multi files
-      $file = file_load($files[0]['fid']);
-      $uri = drupal_realpath($file->uri);
-      $attachments = array(
-        'filecontent' => $uri,
-        'filename' => $file->filename,
-        'filemime' => $file->filemime,
-      );
+    if( $files = field_get_items('node', $mail_node, 'field_valghalla_mail_attachments')) {
+      foreach($files as $file_info){
+        $file = file_load($file_info['fid']);
+        $uri = drupal_realpath($file->uri);
+        $attachments[] = array(
+          'filecontent' => $uri,
+          'filename' => $file->filename,
+          'filemime' => $file->filemime,
+        );
+      }
     }
 
     $body = $body_field[0]['value'];
     $subject = $subject_field[0]['value'];
-    $params = array(
-              'subject' => $subject,
-              'body' => $body,
-              'attachments' => $attachments,
-              );
-    return $params;
+    return array('subject' => $subject, 'body' => $body, 'attachments' => $attachments);
   }
   return FALSE;
 }
@@ -210,30 +176,14 @@ function valghalla_mail_get_mail_byId($mail_nid){
  * Prints the message with the tokens replaced. As it would
  * look in the mail.
  */
-function valghalla_mail_ajax_view($email,$volunteer) {
+function valghalla_mail_ajax_view($mail_nid, $volunteer) {
   $options = array();
   $volunteer_node = node_load($volunteer);
-  $params = valghalla_mail_get_mail_byId($email);
+  $params = valghalla_mail_get_mail(FALSE, FALSE, $mail_nid);
   $tokens = _valhalla_helper_get_volunteer_info_params($volunteer_node);
   $message['body'] = t($params['body'], $tokens, $options);
   $message['subject'] = t($params['subject'], $tokens, $options);
   print "<div class = 'valghalla_mail_subject'> Emne : " . $message['subject'] . "</div>";
-  print "<div class= 'valghalla_mail_body'>" . $message['body']. "</div>";
+  print "<div class= 'valghalla_mail_body'>" . nl2br($message['body']) . "</div>";
 
-}
-
-/**
- * Get replacement tokens.
- *
- * Retrieves the replacement tokens for the supplies fieldcollection
- * ids.
- */
-function valghalla_mail_populate_info($fc_ids){
-  $volunteers_params = array();
-  $volunteer_fcs = entity_load('field_collection_item', $fc_ids);
-
-  foreach ($volunteer_fcs as $volunteer_fc){
-    $volunteers_params[$volunteer_fc->item_id] = _valghalla_helper_get_token_values($volunteer_fc);
-  }
-  return $volunteers_params;
 }
