@@ -101,14 +101,16 @@ function valghalla_mail_mail($key, &$message, $params) {
       $params += array('tokens' => '');
 
       // Html mail
-      $headers = array(
-        'MIME-Version' => '1.0',
-        'Content-Type' => 'text/html; charset=UTF-8; format=flowed',
-        'Content-Transfer-Encoding' => '8Bit',
-        'X-Mailer' => 'Drupal'
-      );
-      foreach ($headers as $key => $value) {
-        $message['headers'][$key] = $value;
+      if(strstr($params['format'], 'html')){
+        $headers = array(
+          'MIME-Version' => '1.0',
+          'Content-Type' => 'text/html; charset=UTF-8; format=flowed',
+          'Content-Transfer-Encoding' => '8Bit',
+          'X-Mailer' => 'Drupal'
+        );
+        foreach ($headers as $key => $value) {
+          $message['headers'][$key] = $value;
+        }
       }
 
       $message['subject'] = t($params['subject'], $params['tokens'], $options);
@@ -162,10 +164,10 @@ function valghalla_mail_get_mail($role_nid, $mail_type, $mail_nid = FALSE){
         );
       }
     }
-
     $body = $body_field[0]['value'];
+    $format = $body_field[0]['format'];
     $subject = $subject_field[0]['value'];
-    return array('subject' => $subject, 'body' => $body, 'attachments' => $attachments);
+    return array('subject' => $subject, 'body' => $body, 'format' => $format, 'attachments' => $attachments);
   }
   return FALSE;
 }
