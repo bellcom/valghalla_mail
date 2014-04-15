@@ -15,6 +15,26 @@ function valghalla_mail_sendmail_form_step(&$form, &$form_state) {
   drupal_goto('admin/valhalla/sendto/'.$nid);
 }
 
+function valghalla_mail_sendinvitation_form($form, &$form_state) {
+  $query = new EntityFieldQuery();
+  $query->entityCondition('entity_type', 'node')
+    ->entityCondition('bundle', 'election')
+    ->fieldCondition('field_election_status','value', 1);
+  $nids = array_keys(reset($query->execute()));
+
+  if(empty($nids)){
+    drupal_set_message('Du skal aktivere et valg før du kan udsende invitationer', 'warning');
+    drupal_goto('admin/valhalla');
+    return;
+  }
+
+  drupal_add_css(drupal_get_path('module', 'valghalla_mail') . '/css/valghalla_mail.css');
+  drupal_add_js(drupal_get_path('module', 'valghalla_mail') . '/js/valghalla_mail.js', 'file');
+  $form_state['multistep_values']['get_recipients']['invitation'] = TRUE;
+  $form_state['multistep_values']['get_recipients']['valghalla_mail_email_node_ID'] = 'invite';
+  return valghalla_mail_sendmail_send_confirm_form($form, $form_state);
+}
+
 /**
  * Step 2 : get_recipients
  * Step 3 : send_confirm
@@ -22,7 +42,7 @@ function valghalla_mail_sendmail_form_step(&$form, &$form_state) {
  * @see valghalla_mail_sendmail_form_validate().
  * @see valghalla_mail_sendmail_form_submit().
  */
-function valghalla_mail_sendmail_form($form, &$form_state,$nid) {
+function valghalla_mail_sendmail_form($form, &$form_state, $nid) {
   drupal_add_css(drupal_get_path('module', 'valghalla_mail') . '/css/valghalla_mail.css');
   drupal_add_js(drupal_get_path('module', 'valghalla_mail') . '/js/valghalla_mail.js', 'file');
 
@@ -36,7 +56,7 @@ function valghalla_mail_sendmail_form($form, &$form_state,$nid) {
   switch ($form_state['stage']) {
 
     case 'get_recipients':
-      return valghalla_mail_sendmail_get_recipients_form($form, $form_state,$nid);
+      return valghalla_mail_sendmail_get_recipients_form($form, $form_state, $nid);
      break;
 
     case 'send_confirm':
@@ -44,7 +64,7 @@ function valghalla_mail_sendmail_form($form, &$form_state,$nid) {
      break;
 
     default:
-      return valghalla_mail_sendmail_get_recipients_form($form, $form_state,$nid);
+      return valghalla_mail_sendmail_get_recipients_form($form, $form_state, $nid);
      break;
   }
 
@@ -118,16 +138,17 @@ function valghalla_mail_sendmail_get_recipients_form($form, &$form_state, $nid) 
   }
   else $description = ' <a class="form-submit" href="/admin/valhalla/sendmail">Add</a>';
   $form['mail_content']['valghalla_mail_email_node_ID'] = array(
-      '#title' => "Mail indhold",
-      '#type' => 'select',
-      '#options' => array($nid => isset($node->title) ? $node->title : ''),
-      '#default_value' => $nid,
-      '#description' => $description,
-    );
+    '#title' => "Mail indhold",
+    '#type' => 'select',
+    '#options' => array($nid => isset($node->title) ? $node->title : ''),
+    '#default_value' => $nid,
+    '#description' => $description,
+  );
+
   $form['recipents'] = array(
-      '#type' => 'fieldset',
-      '#title' => 'Modtagere',
-      '#description' => "Hold CTRL nede for at v¾lge flere. Ingen valgte vil sende til alle.",
+    '#type' => 'fieldset',
+    '#title' => 'Modtagere',
+    '#description' => "Hold CTRL nede for at v¾lge flere. Ingen valgte vil sende til alle.",
   );
 
   /**
@@ -144,70 +165,78 @@ function valghalla_mail_sendmail_get_recipients_form($form, &$form_state, $nid) 
     );
    */
   $form['recipents']['rsvp_status'] = array(
-      '#type' => 'select',
-      '#title' => 'RSVP Status',
-      //'#multiple' => true,
-      '#options' => array(
-          '1' => t('Ja'),
-          '2' => t('Nej'),
-          '3' => t('Aldrig'),
-          '0' => t('Ubesvaret'),
-      ),
-      '#size' => 5,
-      '#prefix' => '<div style="float:left;margin-right:2em">',
-      '#suffix' => '</div>',
-      '#default_value' => isset($values['rsvp_status']) ? $values['rsvp_status'] : 1,
+    '#type' => 'select',
+    '#title' => 'RSVP Status',
+    //'#multiple' => true,
+    '#options' => array(
+        '1' => t('Ja'),
+        '2' => t('Nej'),
+        '3' => t('Aldrig'),
+        '0' => t('Ubesvaret'),
+    ),
+    '#size' => 5,
+    '#prefix' => '<div style="float:left;margin-right:2em">',
+    '#suffix' => '</div>',
+    '#default_value' => isset($values['rsvp_status']) ? $values['rsvp_status'] : 1,
   );
+
   $form['recipents']['roles'] = array(
-      '#type' => 'select',
-      '#title' => 'Frivillig type',
-      '#multiple' => true,
-      '#options' => $roles,
-      '#size' => 5,
-      '#prefix' => '<div style="float:left;margin-right:2em">',
-      '#suffix' => '</div>',
-      '#default_value' => isset($values['roles']) ? $values['roles'] : NULL,
+    '#type' => 'select',
+    '#title' => 'Frivillig type',
+    '#multiple' => true,
+    '#options' => $roles,
+    '#size' => 5,
+    '#prefix' => '<div style="float:left;margin-right:2em">',
+    '#suffix' => '</div>',
+    '#default_value' => isset($values['roles']) ? $values['roles'] : NULL,
   );
+
   $form['recipents']['party'] = array(
-      '#type' => 'select',
-      '#title' => 'Parti',
-      '#multiple' => true,
-      '#options' => $parties,
-      '#size' => 5,
-      '#prefix' => '<div style="float:left;margin-right:2em">',
-      '#suffix' => '</div>',
-      '#default_value' => isset($values['party']) ? $values['party'] : NULL,
+    '#type' => 'select',
+    '#title' => 'Parti',
+    '#multiple' => true,
+    '#options' => $parties,
+    '#size' => 5,
+    '#prefix' => '<div style="float:left;margin-right:2em">',
+    '#suffix' => '</div>',
+    '#default_value' => isset($values['party']) ? $values['party'] : NULL,
   );
+
   $form['recipents']['polling_station'] = array(
-      '#type' => 'select',
-      '#title' => 'Valgsted',
-      '#multiple' => true,
-      '#options' => $ps,
-      '#size' => 5,
-      '#prefix' => '<div style="float:left;margin-right:2em">',
-      '#suffix' => '</div>',
-      '#default_value' => isset($values['polling_station']) ? $values['polling_station'] : NULL,
+    '#type' => 'select',
+    '#title' => 'Valgsted',
+    '#multiple' => true,
+    '#options' => $ps,
+    '#size' => 5,
+    '#prefix' => '<div style="float:left;margin-right:2em">',
+    '#suffix' => '</div>',
+    '#default_value' => isset($values['polling_station']) ? $values['polling_station'] : NULL,
   );
+
   $form['sender'] = array(
-      '#type' => 'fieldset',
-      '#title' => 'Afsender',
+    '#type' => 'fieldset',
+    '#title' => 'Afsender',
   );
+
   $form['sender']['email_sender'] = array(
       '#type' => 'checkbox',
       '#title' => "brug min egen mail",
       '#description' => "Denne vil også bruges som svar-til email, så svar fra modtageren sendes til den pågældende e-mailadresse. ",
       '#default_value' => isset($values['email_sender']) ? $values['email_sender'] : 0,
-  );
+    );
+
   global $user;
   $form['sender']['user_email'] = array(
-      '#type' => 'hidden',
-      '#default_value' => $user->mail,
+    '#type' => 'hidden',
+    '#default_value' => $user->mail,
   );
+
 
   $form['next'] = array(
     '#type' => 'submit',
     '#value' => t('Next')
   );
+
 
   return $form;
 }
@@ -222,9 +251,8 @@ function valghalla_mail_sendmail_send_confirm_form($form, &$form_state) {
 
   $values = isset($form_state['multistep_values']['get_recipients']) ? $form_state['multistep_values']['get_recipients'] : array();
 
-  $volunteers_nids = valghalla_mail_sendmail_get_mailList($values);
+  $volunteers_nids = valghalla_mail_sendmail_get_recipients($values);
 
-  //
   $count = 0;
   $mail_list = "";
   $to_mails = array();
@@ -285,10 +313,19 @@ function valghalla_mail_sendmail_send_confirm_form($form, &$form_state) {
 /**
  * Get all the mail eddresses
  */
-function valghalla_mail_sendmail_get_mailList($values) {
+function valghalla_mail_sendmail_get_recipients($values) {
   global $language;
-
   module_load_include('inc', 'valhalla_volunteers');
+
+  if(isset($values['invitation']) && $values['invitation'] === TRUE){
+    $select = db_select('field_data_field_polling_station_post', 'psp')
+                ->fields('psp', array('entity_id'))
+                ->condition('psp.bundle', 'volunteers');
+    $select->addJoin('INNER', 'field_data_field_polling_station', 'ps', 'psp.entity_id = ps.entity_id');
+    $volunteer_nids = $select->execute()
+          ->fetchAll(PDO::FETCH_COLUMN);
+    return $volunteer_nids;
+  }
 
   $rsvp_status = count($values['rsvp_status']) > 0 ? $values['rsvp_status'] : false;
   $role = count($values['roles']) > 0 ? $values['roles'] : false;

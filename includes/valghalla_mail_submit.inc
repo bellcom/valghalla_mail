@@ -27,11 +27,6 @@ function valghalla_mail_sendmail_form_submit($form, &$form_state) {
       break;
   }
 
-  if (isset($form_state['complete'])) {
-    drupal_set_message("Mails sendt");
-    drupal_goto('/admin/valhalla/sendmail');
-  }
-
   if ($form_state['triggering_element']['#value'] == 'Tilbage') {
     $form_state['new_stage'] = valghalla_mail_sendmail_move_to_previous_stage($form, $form_state);
   }
@@ -44,24 +39,48 @@ function valghalla_mail_sendmail_form_submit($form, &$form_state) {
   $form_state['rebuild'] = TRUE;
 }
 
+/**
+ * Submit handler for sendinvitation
+ */
+function valghalla_mail_sendinvitation_form_submit($form, &$form_state) {
+  valghalla_mail_sendmail_send_confirm_submit($form, $form_state);
+}
+
  /**
   * Handles the submission of the final stage
-  * Step 3 : Send mails .(TODO: save in pool table, queued and wait for cron job to send email.)
+  * Step 3 : Send mails
   *
-  * @param type $form
-  * @param type $form_state
-  * @author yani
   */
-function valghalla_mail_sendmail_send_confirm_submit($form, &$form_state) {
-  $multstep_values = $form_state['multistep_values'];
-  $nid = $multstep_values['get_recipients']['valghalla_mail_email_node_ID'];
-  $sendMailList_count = $form_state['valghalla_sendlist']['valghalla_sendlist_acount'];
-  $mails = $form_state['valghalla_sendlist']['valghalla_sendlist_array'];
+function valghalla_mail_sendmail_send_confirm_submit($form, &$form_state){
+  $multistep_values = $form_state['multistep_values'];
+  $mail_nid = $multstep_values['get_recipients']['valghalla_mail_email_node_ID'];
+  $volunteers_nids = valghalla_mail_sendmail_get_recipients($multistep_values['get_recipients']);
 
-  // TODO : Set email queue size to 500 email. TODO: admin config bar.
-  // $queue = $sendMailList_count/5;
-  // Save email node and volunteer email addresses to mail pool table.
-  //valghalla_mail_save_mpool($mpool);
+  $mail_chunks = array_chunk($volunteers_nids, 10);
+
+  foreach($mail_chunks as $mail_batch){
+    $operations[] = array(
+      'valghalla_mail_send_batch', array($mail_nid, $mail_batch, $form_state),
+    );
+  }
+  error_log('hest');
+  batch_set(
+    array(
+      'title' => t('Sender E-mails'),
+      'operations' => $operations,
+      'finished' => 'valghalla_mails_send_batch_finished',
+      'progress_message' => t('Sender blok @current ud af @total. Hver blok indeholder (op til) 10 modtagere.'),
+      'file' => drupal_get_path('module', 'valghalla_mail') . '/includes/valghalla_mail_submit.inc',
+    )
+  );
+}
+
+function valghalla_mail_send_batch($mail_nid, $recipients, $form_state, &$context){
+  $start = time();
+  $multstep_values = $form_state['multistep_values'];
+  $mail_nid = $multstep_values['get_recipients']['valghalla_mail_email_node_ID'];
+  $sendMailList_count = $form_state['valghalla_sendlist']['valghalla_sendlist_acount'];
+
   $mail_sender = $multstep_values['get_recipients']['email_sender'];
   if ($mail_sender) {
     $from = $multstep_values['get_recipients']['user_email'];
@@ -71,17 +90,26 @@ function valghalla_mail_sendmail_send_confirm_submit($form, &$form_state) {
   }
   $language = language_default();
 
-  foreach ($mails as $key => $to) {
-    $volunteer_node = node_load($key);
-    $params = valghalla_mail_get_mail(FALSE, FALSE, $nid);
+  foreach($recipients as $nid => $recipient){
+    $volunteer_node = node_load($recipient);
+
     $tokens = _valhalla_helper_get_volunteer_info_params($volunteer_node);
+
+    if($mail_nid == 'invite'){
+      $params = valghalla_mail_get_mail($tokens['!position_nid'], 'invitation');
+    }
+    else {
+      $params = valghalla_mail_get_mail(FALSE, FALSE, $mail_nid);
+    }
+    $to = $tokens['!email'];
     $params = array_merge(array('tokens' => $tokens), $params);
+
     $result = drupal_mail('valghalla_mail', 'mail', $to, $language, $params, $from, TRUE);
     if ($result['result'] == TRUE) {
       $msg = t('Mail nid = %nid is sent to email=%email');
       watchdog(
         'Valghalla mail', $msg, $variables = array(
-          '%nid' => $nid,
+          '%nid' => $mail_nid,
           '%email' => $to
           )
       );
@@ -90,10 +118,20 @@ function valghalla_mail_sendmail_send_confirm_submit($form, &$form_state) {
       $msg = t('Error : Mail nid = %nid is NOT sent to email=%email');
       watchdog(
         'Valghalla mail', $msg, $variables = array(
-          '%nid' => $nid,
+          '%nid' => $mail_nid,
           '%email' => $to
           )
       );
     }
+  }
+
+  $context['message'] = "Det er vigtigt at du ikke forlader denne side!";
+  error_log(time() - $start);
+}
+
+function valghalla_mails_send_batch_finished($success, $results, $operations){
+  if($success){
+    drupal_set_message(t('E-mails er blevet sendt'));
+    drupal_goto('admin/valhalla');
   }
 }
