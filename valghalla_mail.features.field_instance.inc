@@ -33,7 +33,7 @@ function valghalla_mail_field_default_field_instances() {
     ),
     'entity_type' => 'node',
     'field_name' => 'field_subject',
-    'label' => 'Subject',
+    'label' => 'Emne',
     'required' => 0,
     'settings' => array(
       'text_processing' => 0,
@@ -77,8 +77,8 @@ function valghalla_mail_field_default_field_instances() {
     'settings' => array(
       'description_field' => 0,
       'file_directory' => '',
-      'file_extensions' => 'txt pdf doc xml',
-      'max_filesize' => '',
+      'file_extensions' => 'txt pdf doc docx odt ppt pptx xls xlsx',
+      'max_filesize' => '10MB',
       'user_register_form' => FALSE,
     ),
     'widget' => array(
@@ -88,55 +88,13 @@ function valghalla_mail_field_default_field_instances() {
         'progress_indicator' => 'throbber',
       ),
       'type' => 'file_generic',
-      'weight' => 4,
-    ),
-  );
-
-  // Exported field_instance: 'node-email-field_valghalla_mail_type'
-  $field_instances['node-email-field_valghalla_mail_type'] = array(
-    'bundle' => 'email',
-    'default_value' => array(
-      0 => array(
-        'value' => 1,
-      ),
-    ),
-    'deleted' => 0,
-    'description' => 'Mail type, f. eks, RSVP Ja er auto mail',
-    'display' => array(
-      'default' => array(
-        'label' => 'above',
-        'settings' => array(),
-        'type' => 'hidden',
-        'weight' => 3,
-      ),
-      'teaser' => array(
-        'label' => 'above',
-        'settings' => array(),
-        'type' => 'hidden',
-        'weight' => 0,
-      ),
-    ),
-    'entity_type' => 'node',
-    'field_name' => 'field_valghalla_mail_type',
-    'label' => 'Mail type',
-    'required' => 0,
-    'settings' => array(
-      'user_register_form' => FALSE,
-    ),
-    'widget' => array(
-      'active' => 1,
-      'module' => 'options',
-      'settings' => array(),
-      'type' => 'options_select',
-      'weight' => 5,
+      'weight' => 3,
     ),
   );
 
   // Translatables
   // Included for use with string extractors like potx.
-  t('Mail type');
-  t('Mail type, f. eks, RSVP Ja er auto mail');
-  t('Subject');
+  t('Emne');
   t('Vedhæftede filer');
 
   return $field_instances;

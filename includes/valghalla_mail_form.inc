@@ -74,11 +74,11 @@ function valghalla_mail_sendmail_create_email_node() {
  * @param type $form_state
  * @return type
  */
-function valghalla_mail_sendmail_get_recipients_form($form, &$form_state,$nid) {
+function valghalla_mail_sendmail_get_recipients_form($form, &$form_state, $nid) {
   if (!is_numeric($nid) || !isset($nid)) {
     form_set_error('no_email', t("Ingen mail indhold."));
-    return;
   }
+
   $values = isset($form_state['multistep_values']['get_recipients']) ? $form_state['multistep_values']['get_recipients'] : array();
 
   module_load_include('inc', 'valghalla_volunteers');
@@ -107,7 +107,7 @@ function valghalla_mail_sendmail_get_recipients_form($form, &$form_state,$nid) {
   // Roles
   $roles= db_select('node', 'n')
           ->distinct()
-          ->fields('n', array('title', 'nid'))
+          ->fields('n', array('nid', 'title'))
           ->condition('n.type', 'roles')
           ->execute()->fetchAllKeyed();
 
@@ -129,6 +129,9 @@ function valghalla_mail_sendmail_get_recipients_form($form, &$form_state,$nid) {
       '#title' => 'Modtagere',
       '#description' => "Hold CTRL nede for at v¾lge flere. Ingen valgte vil sende til alle.",
   );
+
+  /**
+   * Hide this for a bit
   $form['recipents']['election'] = array(
       '#type' => 'select',
       '#title' => 'Valg',
@@ -138,8 +141,8 @@ function valghalla_mail_sendmail_get_recipients_form($form, &$form_state,$nid) {
       '#prefix' => '<div style="float:left;margin-right:2em">',
       '#suffix' => '</div>',
       '#default_value' => isset($values['election']) ? $values['election'] : NULL,
-
-  );
+    );
+   */
   $form['recipents']['rsvp_status'] = array(
       '#type' => 'select',
       '#title' => 'RSVP Status',
@@ -269,7 +272,7 @@ function valghalla_mail_sendmail_send_confirm_form($form, &$form_state) {
   $form['next'] = array(
     '#type' => 'submit',
     '#label' => 'Send!',
-    '#value' => t('Submit')
+    '#value' => t('Send')
   );
   $form_state['valghalla_sendlist'] = array(
     'valghalla_sendlist_array' => $to_mails,
@@ -341,8 +344,28 @@ function valghalla_mail_form_email_node_form_alter(&$form, &$form_state, $form_i
   $form['body']['#suffix'] = _valghalla_helper_get_volunteer_info_params('info') . $form['body']['#suffix'];
   $url = current_path();
 
+  $form['title']['#description'] = 'E-mailens interne navn i Valghalla, dette er ikke emnefeltet.';
+
   if ($url == "admin/valhalla/sendmail") {
     $form_state['valghalla_sendmail'] = TRUE;
+
+    $emails = db_select('node', 'n')
+          ->distinct()
+          ->fields('n', array('nid', 'title'))
+          ->condition('n.type', 'email')
+          ->execute()->fetchAllKeyed();
+
+    $form['resend'] = array(
+      '#type' => 'select',
+      '#weight' => -100,
+      '#options' => $emails,
+      '#title' => 'Vælg en mailskabelon her:',
+      '#suffix' => '<p><b>Eller opret en ny herunder:</b></p>',
+      '#empty_option' => t('- None -'),
+      '#ajax' => array(
+        'callback' => 'valghalla_mail_resend_ajax'
+      ),
+    );
   }
 
   if ($form_state['valghalla_sendmail']){
@@ -354,4 +377,18 @@ function valghalla_mail_form_email_node_form_alter(&$form, &$form_state, $form_i
     $form['actions']['submit']['#value'] = t('Next');
     hide($form['actions']['preview']);
   }
+}
+
+/**
+ * Redirect the user to the send form for the relevant mail.
+ *
+ * @author: Thomas Thune Hansen <tth@bellcom.dk>
+ * @todo: find out if there is a better way to do this.
+ */
+function valghalla_mail_resend_ajax($form, $form_state){
+  ctools_include('ajax');
+  ctools_add_js('ajax-responder');
+  $commands[] = ctools_ajax_command_redirect('admin/valhalla/sendto/'.$form_state['values']['resend']);
+  print ajax_render($commands);
+  exit;
 }
