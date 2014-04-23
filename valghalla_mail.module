@@ -100,6 +100,13 @@ function valghalla_mail_menu() {
  */
 function valghalla_mail_mail($key, &$message, $params) {
   $options = array();
+
+  // Break if $params is not an array.
+  if(!is_array($params)){
+    //$message = array();
+    return;
+  }
+
   switch ($key) {
     // "default" case for sending mail.
     case 'mail':

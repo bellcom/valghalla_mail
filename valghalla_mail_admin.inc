@@ -66,10 +66,7 @@ function valghalla_mail_admin_valghalla_mails(){
   // Populate array with mail options for general mails.
   $mail_options[0] = t('None');
   foreach($mail_nodes as $mail_node){
-    // yani: only list the auto mails type.
-    if (isset($mail_node->field_valghalla_mail_type['und']) && $mail_node->field_valghalla_mail_type['und'][0]['value'] == 1) {
-      $mail_options[$mail_node->nid] = $mail_node->title;
-    }
+    $mail_options[$mail_node->nid] = $mail_node->title;
   }
 
   // Generate form for selecting general mails.
