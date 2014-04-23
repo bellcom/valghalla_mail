@@ -44,6 +44,17 @@ function valghalla_mail_sendmail_form_submit($form, &$form_state) {
  */
 function valghalla_mail_sendinvitation_form_submit($form, &$form_state) {
   valghalla_mail_sendmail_send_confirm_submit($form, $form_state);
+
+  $query = new EntityFieldQuery();
+  $query->entityCondition('entity_type', 'node')
+    ->entityCondition('bundle', 'election')
+    ->fieldCondition('field_election_status','value', 1);
+  $nids = array_keys(reset($query->execute()));
+  $node = node_load(reset($nids));
+
+  global $language;
+  $node->field_election_mails_send[$language->language][0]['value'] = 1;
+  node_save($node);
 }
 
  /**
