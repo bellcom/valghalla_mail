@@ -64,6 +64,13 @@ function valghalla_mail_sendinvitation_form_submit($form, &$form_state) {
   */
 function valghalla_mail_sendmail_send_confirm_submit($form, &$form_state){
   $multistep_values = $form_state['multistep_values'];
+
+  // If the user is sending invitations and clicks back, send to the overview
+  // page.
+  if(isset($multistep_values['get_recipients']['invitation']) && $form_state['clicked_button']['#array_parents'][0] == 'back'){
+    drupal_goto('admin/valhalla');
+  }
+
   $mail_nid = $multstep_values['get_recipients']['valghalla_mail_email_node_ID'];
   $volunteers_nids = valghalla_mail_sendmail_get_recipients($multistep_values['get_recipients']);
 
