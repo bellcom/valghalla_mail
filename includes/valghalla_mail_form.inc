@@ -129,7 +129,7 @@ function valghalla_mail_sendmail_get_recipients_form($form, &$form_state, $nid) 
           ->distinct()
           ->fields('n', array('nid', 'title'))
           ->condition('n.type', 'roles')
-          ->execute()->fetchAllKeyed();
+          ->execute()->fetchAllKeyed(1,1);
 
   if ($nid) {
     if ($node = node_load($nid))
@@ -148,7 +148,7 @@ function valghalla_mail_sendmail_get_recipients_form($form, &$form_state, $nid) 
   $form['recipents'] = array(
     '#type' => 'fieldset',
     '#title' => 'Modtagere',
-    '#description' => "Hold CTRL nede for at v¾lge flere. Ingen valgte vil sende til alle.",
+    '#description' => "Hold CTRL nede for at vælge flere. Ingen valgte vil sende til alle.",
   );
 
   /**
@@ -167,7 +167,6 @@ function valghalla_mail_sendmail_get_recipients_form($form, &$form_state, $nid) 
   $form['recipents']['rsvp_status'] = array(
     '#type' => 'select',
     '#title' => 'RSVP Status',
-    //'#multiple' => true,
     '#options' => array(
         '1' => t('Ja'),
         '2' => t('Nej'),
@@ -230,7 +229,6 @@ function valghalla_mail_sendmail_get_recipients_form($form, &$form_state, $nid) 
     '#type' => 'hidden',
     '#default_value' => $user->mail,
   );
-
 
   $form['next'] = array(
     '#type' => 'submit',
@@ -337,7 +335,7 @@ function valghalla_mail_sendmail_get_recipients($values) {
   $query = db_select('node', 'n');
   $query->fields('n', array('nid'));
   $query->condition('type', 'volunteers');
-
+  
   if ($rsvp_status) {
     $query->leftjoin('field_data_field_rsvp', 'r', 'n.nid = r.entity_id');
     $sql = '{field_rsvp_value} IN (' . $rsvp_status . ')';
@@ -348,7 +346,7 @@ function valghalla_mail_sendmail_get_recipients($values) {
   }
   if ($role) {
     $query->join('field_data_field_label', 'v', 'n.nid = v.entity_id');
-    $query->condition('field_label_value', $role);
+    $query->condition('field_label_value', array_keys($role));
   }
   if ($party) {
     $query->join('field_data_field_party', 'p', 'n.nid = p.entity_id');
@@ -360,11 +358,14 @@ function valghalla_mail_sendmail_get_recipients($values) {
     $query->condition('field_polling_station_nid', $polling_station);
   }
 
+  $query->join('field_data_field_polling_station_post', 'psp', 'n.nid = psp.entity_id');
+  $query->condition('field_polling_station_post_value', 1, '>');
+
   // Get the results
   $volunteers_nids = $query->execute()->fetchAll(PDO::FETCH_COLUMN);
 
   // load election node
-  $election = node_load($election);
+
 
   return $volunteers_nids;
 }
