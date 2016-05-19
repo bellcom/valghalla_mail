@@ -11,43 +11,10 @@
  *
  * this notifies volunteers with no rsvp status 14 an 7 days before an election
  *
- * @global stdClass $language
  * @param int $last_run_ts unix timestamp of last cron run
  * @return void
  */
 function valghalla_mail_rsvp_reminder($last_run_ts) {
-  global $language;
-
-  // find active election
-  $nid = db_select('field_data_field_election_status', 'es')
-      ->fields('es', array('entity_id'))
-      ->condition('es.bundle', 'election')
-      ->condition('es.field_election_status_value', 1)
-      ->execute()
-      ->fetchColumn();
-
-  if (!$nid) {
-    watchdog('Valghalla', 'Der blev ikke fundet noget aktict valg - aktiver dit valg. ', WATCHDOG_NOTICE);
-    return;
-  }
-
-  $election = node_load($nid);
-
-  $election_date = field_get_items('node', $election, 'field_date');
-  list($election_date, $time) = preg_split("|T|", $election_date[0]['value']);
-  $today_date = strtotime(date('Y-m-d'));
-  $election_date1 = strtotime($election_date);
-  $days_to_election = floor(($election_date1 - $today_date) / 86400);
-
-  // check dates
-  $notification_days_arr = variable_get('valghalla_rsvp_reminder_days');
-  $notification_days = explode(',', variable_get('valghalla_rsvp_reminder_days'));
-
-  if (!in_array($days_to_election, $notification_days)) {
-    watchdog('Valghalla', 'Mail job blev ikke kørt idet idag ikke er nogen rykker dag. Valg: %election_date Dage til valget: %todays Rykkerdage: %godays', array('%todays' => $days_to_election, '%godays' => $notification_days_arr, '%election_date' => $election_date), WATCHDOG_NOTICE);
-    return;
-  }
-
   // only run once a day
   if (date('Ymd') <= date('Ymd', $last_run_ts)) {
     $check_data = date('d-m-Y', $last_run_ts);
@@ -55,23 +22,59 @@ function valghalla_mail_rsvp_reminder($last_run_ts) {
     return;
   }
 
-  // helpers
-  $election->days_to_election = $days_to_election;
-  $election_date = field_get_items('node', $election, 'field_date');
-  $election->election_date = date('j/m Y', strtotime($election_date[0]['value']));
+  // find active election
+  $nids = db_select('field_data_field_election_status', 'es')
+      ->fields('es', array('entity_id'))
+      ->condition('es.bundle', 'election')
+      ->condition('es.field_election_status_value', 1)
+      ->execute()
+      ->fetchAll(PDO::FETCH_COLUMN);
 
-  // find volunteers to notify, we only send to users whom has no rsvp status - and a valid email address
-  foreach (entity_load('node', FALSE, array('type' => 'volunteers')) as $volunteer) {
-    // tth: Check if the user deserves a reminder
-    if (!empty($volunteer->field_rsvp) ||
-      empty($volunteer->field_email) ||
-      empty($volunteer->field_polling_station_post)
-    ) {
-      continue;
+  if (empty($nids)) {
+    watchdog('Valghalla', 'Der blev ikke fundet noget aktict valg - aktiver dit valg. ', WATCHDOG_NOTICE);
+    return;
+  }
+
+  foreach($nids as $nid){
+    $election = node_load($nid);
+    $election_date = field_get_items('node', $election, 'field_date');
+    list($election_date, $time) = preg_split("|T|", $election_date[0]['value']);
+    $today_date = strtotime(date('Y-m-d'));
+    $election_date1 = strtotime($election_date);
+    $days_to_election = floor(($election_date1 - $today_date) / 86400);
+
+    // check dates
+    $notification_days_arr = variable_get('valghalla_rsvp_reminder_days');
+    $notification_days = explode(',', variable_get('valghalla_rsvp_reminder_days'));
+    if (!in_array($days_to_election, $notification_days)) {
+      watchdog('Valghalla', 'Mail job blev ikke kørt idet idag ikke er nogen rykker dag. Valg: %election_date Dage til valget: %todays Rykkerdage: %godays', array('%todays' => $days_to_election, '%godays' => $notification_days_arr, '%election_date' => $election_date), WATCHDOG_NOTICE);
+      return;
     }
 
-    // Send reminder
-    valghalla_mail_rsvp_reminder_send($election, $volunteer);
+    // helpers
+    $election->days_to_election = $days_to_election;
+    $election_date = field_get_items('node', $election, 'field_date');
+    $election->election_date = date('j/m Y', strtotime($election_date[0]['value']));
+
+    $volunteer_query = new EntityFieldQuery();
+    $volunteer_query->entityCondition('entity_type', 'field_collection_item')
+                    ->entityCondition('bundle', 'field_electioninfo')
+                    ->fieldCondition('field_election', 'target_id', $election->nid);
+
+    $volunteer_result = $volunteer_query->execute();
+
+    if(!empty($volunteer_result)){
+      foreach(reset($volunteer_result) as $value){
+        if($volunteer_fc = entity_load_single('field_collection_item', $value->item_id)){
+          // tth: Check if the user deserves a reminder
+          if($field = field_get_items('field_collection_item', $volunteer_fc, 'field_rsvp')){
+            if($field[0]['value'] == 0){
+              valghalla_mail_rsvp_reminder_send($election, $volunteer_fc);
+            }
+          }
+        }
+      }
+    }
   }
 }
 
@@ -82,17 +85,18 @@ function valghalla_mail_rsvp_reminder($last_run_ts) {
  * @param stdClass $election
  * @param stdClass $volunteer
  */
-function valghalla_mail_rsvp_reminder_send($election, $volunteer) {
+function valghalla_mail_rsvp_reminder_send($election, $volunteer_fc) {
   global $language;
   module_load_include('inc', 'valhalla_volunteers', 'valhalla_volunteers');
-  $email = field_get_items('node', $volunteer, 'field_email');
+  $volunteer_node = $volunteer_fc->hostEntity();
+  $email = field_get_items('node', $volunteer_node, 'field_email');
 
   $to = $email[0]['email'];
   $from = variable_get('site_mail', 'admin@example.com');
-  $tokens = _valhalla_helper_get_volunteer_info_params($volunteer);
+  $tokens = _valghalla_helper_get_token_values($volunteer_fc);
 
   // Fetch the mail for the volunteers role
-  if($mail = valghalla_mail_get_mail($tokens['!position_nid'], 'reminder')){
+  if($mail = valghalla_mail_get_mail($election->nid, $tokens['!position_nid'], 'reminder')){
     $params = array_merge(array('tokens' => $tokens), $mail);
   }
 

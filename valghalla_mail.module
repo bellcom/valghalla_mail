@@ -20,20 +20,6 @@ module_load_include('inc', 'valghalla_mail', 'includes/valghalla_mail_submit');
 module_load_include('inc', 'valghalla_mail', 'includes/valghalla_mail_form');
 
 /**
- * Migration wrapper
- *
- * @author Thomas Thune Hansen <tth@bellcom.dk>
- * @TODO:
- *  Remove when valhalla_volunteers module is renamed.
- */
-function _valghalla_helper_get_volunteer_info_params($params){
-  return _valhalla_helper_get_volunteer_info_params($params);
-}
-function _valghalla_volunteers_default_rsvp_status(){
-  return _valhalla_volunteers_default_rsvp_status();
-}
-
-/**
  * Implements hook_cron()
  *
  * @author Thomas Thune Hansen <tth@bellcom.dk>
@@ -54,40 +40,53 @@ function valghalla_mail_cron(){
  * @author Thomas Thune Hansen <tth@bellcom.dk>
  */
 function valghalla_mail_menu() {
-  $items['admin/valhalla/mails'] = array(
-      'title' => 'Mails',
+  $items['valghalla/administration/notifications'] = array(
+      'title' => 'E-mail notifikationer',
+      'description' => 'Tilretning af mail notifikationer.',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('valghalla_mail_admin_notifications'),
+      'access arguments' => array('administer valghalla'),
+      'file' => 'valghalla_mail_admin.inc',
+      'type' => MENU_NORMAL_ITEM,
+      'weight' => -4,
+  );
+  $items['valghalla/administration/valg/mails'] = array(
+      'title' => 'E-mail indstillinger',
       'description' => 'Tilretning af standard mails.',
       'page callback' => 'drupal_get_form',
       'page arguments' => array('valghalla_mail_admin_valghalla_mails'),
-      'access arguments' => array('administer valhalla'),
+      'access arguments' => array('administer valghalla'),
       'file' => 'valghalla_mail_admin.inc',
-      'type' => MENU_LOCAL_TASK,
+      'type' => MENU_NORMAL_ITEM,
       'weight' => -4,
   );
-  $items['admin/valhalla/sendmail'] = array(
-      'title' => 'Send mails til frivillige',
-      'description' => 'Her kan der udsendes mails til alle, eller udvalgte segmenter, af de frivillige.',
+
+  $items['valghalla/administration/sendmail'] = array(
+      'title' => 'Send mails til deltagere',
+      'description' => 'Her kan der udsendes mails til alle, eller udvalgte segmenter, af deltagere.',
       'page callback' => 'valghalla_mail_sendmail_create_email_node', // Step 1 create an email node
-      'access arguments' => array('administer valhalla'),
+      'access arguments' => array('administer valghalla'),
       'file' =>'includes/valghalla_mail_form.inc',
-      'type' => MENU_LOCAL_TASK,
+      'type' => MENU_NORMAL_ITEM,
       'weight' => -5,
   );
-  $items['admin/valhalla/sendinvitation'] = array(
+  $items['valghalla/administration/sendinvitation'] = array(
+      'title' => 'Send invitationer',
       'page callback' => 'drupal_get_form',
-      'page arguments' => array('valghalla_mail_sendinvitation_form',3), // Step 2 get mail addresses.
-      'access arguments' => array('administer valhalla'),
+      'page arguments' => array('valghalla_mail_sendinvitation_form', 3), // Step 2 get mail addresses.
+      'access arguments' => array('administer valghalla'),
       'file' =>'includes/valghalla_mail_form.inc',
+      'type' => MENU_LOCAL_TASK,
     );
-  $items['admin/valhalla/sendto/%'] = array(
+  $items['valghalla/administration/sendto/%'] = array(
       'page callback' => 'drupal_get_form',
-      'page arguments' => array('valghalla_mail_sendmail_form',3), // Step 2 get mail addresses.
-      'access arguments' => array('administer valhalla'),
+      'page arguments' => array('valghalla_mail_sendmail_form', 3), // Step 2 get mail addresses.
+      'access arguments' => array('administer valghalla'),
       'file' =>'includes/valghalla_mail_form.inc',
   );
-  $items['valhalla_mail/ajax/view/%/%'] = array(
+  $items['valghalla_mail/ajax/view/%/%'] = array(
     'page callback' => 'valghalla_mail_ajax_view',
-    'access arguments' => array('administer valhalla'),
+    'access arguments' => array('administer valghalla'),
     'page arguments' => array(3,4),
 
   );
@@ -101,16 +100,16 @@ function valghalla_mail_menu() {
 function valghalla_mail_mail($key, &$message, $params) {
   $options = array();
 
-  // Break if $params is not an array.
+  // if $params isnt an array, dont do anything.
   if(!is_array($params)){
-    //$message = array();
+    $message['send'] = FALSE;
     return;
   }
 
   switch ($key) {
     // "default" case for sending mail.
     case 'mail':
-      $params += array('tokens' => '');
+            $params += array('tokens' => '');
 
       // Html mail
       if(strstr($params['format'], 'html')){
@@ -128,6 +127,9 @@ function valghalla_mail_mail($key, &$message, $params) {
       $message['subject'] = t($params['subject'], $params['tokens'], $options);
       $message['body'][] = t($params['body'], $params['tokens'], $options);
       $message['params']['attachments'] = $params['attachments'];
+      if ($params['bcc']) {
+        $message['headers']['Bcc'] = $params['bcc'];
+      }
       break;
     // 20/03-2014 - tth@bellcom.dk: Not sure if this is needed anymore
     // will keep it for a bit.
@@ -143,19 +145,16 @@ function valghalla_mail_mail($key, &$message, $params) {
  *
  * @author Thomas Thune Hansen <tth@bellcom.dk>
  */
-function valghalla_mail_get_mail($role_nid, $mail_type, $mail_nid = FALSE){
+function valghalla_mail_get_mail($election_nid, $role_nid, $mail_type, $mail_nid = FALSE){
+
   if($mail_type){
-    // Get role specific mail node id.
-    $mail_nid = db_select('field_data_field_'.$mail_type, 't')
-      ->fields('t', array('field_'.$mail_type.'_target_id'))
-      ->condition('t.entity_id', $role_nid)
-      ->execute()
-      ->fetchColumn();
+    $variable_name = 'valghalla_mail_' . $election_nid . '_' . $role_nid . '_' . $mail_type;
+    $mail_nid = variable_get($variable_name, 0);
   }
 
   // If it doesn't exist, get the standard.
   if(!$mail_nid){
-    $mail_nid = variable_get('valghalla_mail_' . $mail_type, FALSE);
+    $mail_nid = variable_get('valghalla_mail_' . $election_nid . '_' . $mail_type, FALSE);
   }
 
   $mail_node = node_load($mail_nid);
@@ -165,6 +164,7 @@ function valghalla_mail_get_mail($role_nid, $mail_type, $mail_nid = FALSE){
     $body_field = field_get_items('node', $mail_node, 'body');
     $subject_field = field_get_items('node', $mail_node, 'field_subject');
     // yani: add attachment
+    $attachments = array();
     if( $files = field_get_items('node', $mail_node, 'field_valghalla_mail_attachments')) {
       foreach($files as $file_info){
         $file = file_load($file_info['fid']);
@@ -190,17 +190,17 @@ function valghalla_mail_get_mail($role_nid, $mail_type, $mail_nid = FALSE){
  * Prints the message with the tokens replaced. As it would
  * look in the mail.
  */
-function valghalla_mail_ajax_view($mail_nid, $volunteer) {
+function valghalla_mail_ajax_view($mail_nid, $fc_id, $election_nid = FALSE) {
   $options = array();
-  $volunteer_node = node_load($volunteer);
+  $volunteer_fc = entity_load_single('field_collection_item', $fc_id);
 
-  $tokens = _valhalla_helper_get_volunteer_info_params($volunteer_node);
+  $tokens = _valghalla_helper_get_token_values($volunteer_fc);
 
   if($mail_nid == 'invite'){
-    $params = valghalla_mail_get_mail($tokens['!position_nid'], 'invitation');
+    $params = valghalla_mail_get_mail($election_nid, $tokens['!position_nid'], 'invitation');
   }
   else {
-    $params = valghalla_mail_get_mail(FALSE, FALSE, $mail_nid);
+    $params = valghalla_mail_get_mail(FALSE, FALSE, FALSE, $mail_nid);
   }
 
   $body = t($params['body'], $tokens);
@@ -211,4 +211,43 @@ function valghalla_mail_ajax_view($mail_nid, $volunteer) {
   $subject = t($params['subject'], $tokens, $options);
   print "<div class = 'valghalla_mail_subject'> Emne : " . $subject . "</div>";
   print "<div class= 'valghalla_mail_body'>" . $body . "</div>";
+}
+
+/**
+ * Valghalla mail types
+ */
+function valghalla_mail_get_mail_types(){
+  return array(
+    'invitation' => t('Invitation'),
+    'confirmed' => t('Bekræftet (tak for din tilmeldelse)'),
+    'reminder' => t('Påmindelse'),
+    'rsvp_yes' => t('RSVP Ja'),
+    'rsvp_no' => t('RSVP Nej'),
+    'rsvp_never' => t('RSVP Aldrig'),
+    'remove' => t('Slet fra pladsen'),
+  );
+}
+
+/**
+ * Available mails
+ */
+function valghalla_mail_get_mails(){
+  $mail_nodes = node_load_multiple(array(), array('type' => 'email'));
+  // Populate array with mail options for general mails.
+  $mail_options[0] = t('None');
+  foreach($mail_nodes as $mail_node){
+    $mail_options[$mail_node->nid] = $mail_node->title;
+  }
+  return $mail_options;
+}
+
+/**
+ * Check if the user should recieve mails.
+ */
+function valghalla_mail_volunteer_no_mail($volunteer_node) {
+  if ($field = field_get_items('node', $volunteer_node, 'field_no_mail')) {
+    return $field[0]['value'] == 1;
+  }
+
+  return FALSE;
 }

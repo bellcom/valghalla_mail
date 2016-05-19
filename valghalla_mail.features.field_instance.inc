@@ -10,6 +10,52 @@
 function valghalla_mail_field_default_field_instances() {
   $field_instances = array();
 
+  // Exported field_instance: 'node-email-body'
+  $field_instances['node-email-body'] = array(
+    'bundle' => 'email',
+    'default_value' => NULL,
+    'deleted' => 0,
+    'description' => '',
+    'display' => array(
+      'default' => array(
+        'label' => 'hidden',
+        'module' => 'text',
+        'settings' => array(),
+        'type' => 'text_default',
+        'weight' => 0,
+      ),
+      'teaser' => array(
+        'label' => 'hidden',
+        'module' => 'text',
+        'settings' => array(
+          'trim_length' => 600,
+        ),
+        'type' => 'text_summary_or_trimmed',
+        'weight' => 0,
+      ),
+    ),
+    'entity_type' => 'node',
+    'field_name' => 'body',
+    'label' => 'Indhold',
+    'required' => 0,
+    'settings' => array(
+      'display_summary' => 0,
+      'text_processing' => 1,
+      'user_register_form' => FALSE,
+    ),
+    'widget' => array(
+      'active' => 1,
+      'module' => 'text',
+      'settings' => array(
+        'rows' => 20,
+        'summary_rows' => 5,
+      ),
+      'type' => 'text_textarea_with_summary',
+      'weight' => 2,
+    ),
+    'widget_type' => 'text_textarea_with_summary',
+  );
+
   // Exported field_instance: 'node-email-field_subject'
   $field_instances['node-email-field_subject'] = array(
     'bundle' => 'email',
@@ -95,6 +141,7 @@ function valghalla_mail_field_default_field_instances() {
   // Translatables
   // Included for use with string extractors like potx.
   t('Emne');
+  t('Indhold');
   t('Vedhæftede filer');
 
   return $field_instances;
